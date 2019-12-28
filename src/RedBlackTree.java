@@ -1,13 +1,29 @@
-public class RedBlackTree<K extends Comparable<K>, V> {
+/*
+** Красно-черное дерево
+** Размещение элементов происходит по ключу
+** Если ключ уже есть в дереве содержимое заменяется
+ */
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public class RedBlackTree<K extends Comparable<K>, V> implements Iterable<V>{
 	private static final boolean RED = true;
 	private static final boolean BLACK = false;
 
 	private Entry root; // корень дерева
 	private Entry nil; // заглушка
+	private Entry cur; // текущий узел при обходе итератором
+
+	private int size; // количество элементов в дереве
 
 	public RedBlackTree() {
 		this.nil = new Entry();
+		this.nil.setParent(nil);
+		this.nil.setLeft(nil);
+		this.nil.setRight(nil);
 		this.root = nil;
+		this.cur = nil;
 	}
 
 	/*
@@ -29,9 +45,6 @@ public class RedBlackTree<K extends Comparable<K>, V> {
 		public Entry() {
 			this.key = null;
 			this.value = null;
-			this.parent =  nil;
-			this.left = nil;
-			this.right = nil;
 			this.color = BLACK;
 		}
 
@@ -42,7 +55,7 @@ public class RedBlackTree<K extends Comparable<K>, V> {
 		public Entry(K key, V value, boolean color) {
 			this.key = key;
 			this.value = value;
-			this.parent =  nil;
+			this.parent = nil;
 			this.left = nil;
 			this.right = nil;
 			this.color = color;
@@ -97,6 +110,27 @@ public class RedBlackTree<K extends Comparable<K>, V> {
 		}
 
 		/*
+		** Возвращает следующий узел по префиксному обходу
+		 */
+
+		private Entry getNextNodePrefix() {
+			Entry tmp;
+			Entry cur = this;
+			if (cur.getRight() != nil) {
+				tmp = cur.getRight();
+				while (tmp.getLeft() != nil)
+					tmp = tmp.getLeft();
+				return tmp;
+			}
+			tmp = cur.getParent();
+			while (tmp != nil && cur.isRight()) {
+				cur = tmp;
+				tmp = tmp.getParent();
+			}
+			return tmp;
+		}
+
+		/*
 		** Возвращает деда или заглушку, если его нет
 		 */
 
@@ -130,36 +164,32 @@ public class RedBlackTree<K extends Comparable<K>, V> {
 			return this.getParent().getLeft() == this;
 		}
 
-		/*
-		** Печатает информацию об узле
-		 */
-
-		public void printNode() {
-			String color = "B_";
-			if (this != nil) {
-				if (this.color == RED)
-					color = "R_";
-				System.out.print(color + this.key.toString() + " ");
-			}
-		}
-
 	}
 
 	/*
-	 ** Вставка узла
+	 ** Вставка узла, если удалось вставить возвращает ссылку на вставленный элемент
+	 ** Если ключ уже существует заменяет содержимое и возвращает null
 	 */
 
 	private Entry insertNode(K key, V value) {
 		Entry current = root;
 		Entry prev = nil;
+		int res;
+
 		Entry newNode = new Entry(key, value, RED);
+
 		if (root == nil) {
 			root = newNode;
 			return newNode;
 		}
 		while (current != nil) {
 			prev = current;
-			if (newNode.getKey().compareTo(current.getKey()) < 0)
+			res = newNode.getKey().compareTo(current.getKey());
+			if (res == 0) {
+				current.setValue(newNode.getValue());
+				return null;
+			}
+			else if (res < 0)
 				current = current.getLeft();
 			else
 				current = current.getRight();
@@ -177,8 +207,48 @@ public class RedBlackTree<K extends Comparable<K>, V> {
 			return ;
 
 		Entry newNode = insertNode(key, value);
-		balanceTreeAfterAdd(newNode);
+		if (newNode != null) {
+			size++;
+			balanceTreeAfterAdd(newNode);
+		}
 	}
+
+	/*
+	** Ищет и возвращает элемент по ключу, если его нет возвращает null
+	 */
+
+	public V findElementByKey(K key) {
+		Entry current = this.root;
+		int res;
+
+		while (current != nil) {
+			res = key.compareTo(current.getKey());
+			if (res == 0)
+				return current.getValue();
+			else if (res < 0)
+				current = current.getLeft();
+			else
+				current = current.getRight();
+		}
+		return null;
+	}
+
+	/*
+	 ** Возвращает количество элементов
+	 */
+
+	public int getSize() {
+		return size;
+	}
+
+	/*
+	 ** True если ключ содержится в дереве, false если нет
+	 */
+
+	public boolean containsKey(K key) {
+		return findElementByKey(key) != null;
+	}
+
 
 	/*
 	** Повороты дерева вокруг узла
@@ -277,24 +347,47 @@ public class RedBlackTree<K extends Comparable<K>, V> {
 		else
 			whenParentAndUncleIsRed(node);
 	}
+
 	private void balanceTreeAfterAdd(Entry node) {
 		whenNodeIsRoot(node);
 	}
 
 	/*
-	** Префиксная печать дерева
+	** Находит самый левый(с минимальным ключом) узел
 	 */
 
-	private void printNodesPrefix(Entry node) {
-		if (node != nil) {
-			printNodesPrefix(node.getLeft());
-			node.printNode();
-			printNodesPrefix(node.getRight());
-		}
+	private Entry findMin() {
+		Entry cur = root;
+
+		while (cur.getLeft() != null && cur.getLeft() != nil)
+			cur = cur.getLeft();
+		return cur;
 	}
 
-	public void printTreePrefix() {
-		this.printNodesPrefix(this.root);
+	@Override
+	public Iterator<V> iterator() {
+		return new Iterator<>() {
+			@Override
+			public boolean hasNext() {
+				if (cur != nil) {
+					Entry entry = cur.getNextNodePrefix();
+					return entry != nil;
+				}
+				else
+					return root != nil;
+			}
+
+			@Override
+			public V next() {
+				if (cur != nil)
+					cur = cur.getNextNodePrefix();
+				else
+					cur = findMin();
+				if (cur == nil)
+					throw new NoSuchElementException();
+				return cur.getValue();
+			}
+		};
 	}
 
 }

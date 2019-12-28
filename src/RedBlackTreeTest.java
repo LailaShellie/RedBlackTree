@@ -1,192 +1,300 @@
-import static org.junit.Assert.assertEquals;
 import org.junit.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Iterator;
+
+import static org.junit.Assert.*;
 
 public class RedBlackTreeTest {
-	private ByteArrayOutputStream outPrint = new ByteArrayOutputStream();
-	private PrintStream sysOut = System.out;
-	private RedBlackTree<Integer, Integer> tree;
-	private Method insertNode;
+	private RedBlackTree<Integer, String> tree;
+	private Iterator<String> iterator;
+
+	/*
+	** Приватные методы вложенного класса
+	 */
+
+	private Method getColor;
+	private Method getParent;
+	private Method getLeft;
+	private Method getRight;
+
+	/*
+	 ** Приватные поля класса RedBlackTree
+	 */
+
+	private Field fieldRoot;
+	private Field fieldCur;
+
+	private Boolean RED;
+	private Boolean BLACK;
 
 	@Before
-	public void initTest() throws NoSuchMethodException {
+	public void initTest() throws NoSuchFieldException, NoSuchMethodException, IllegalAccessException {
+		Field red;
+
 		tree = new RedBlackTree<>();
-		insertNode = RedBlackTree.class.getDeclaredMethod("insertNode", Comparable.class, Object.class);
-		insertNode.setAccessible(true);
-		System.setOut(new PrintStream(outPrint));
+
+		iterator = tree.iterator();
+
+		fieldRoot = RedBlackTree.class.getDeclaredField("root");
+		fieldRoot.setAccessible(true);
+		fieldCur = RedBlackTree.class.getDeclaredField("cur");
+		fieldCur.setAccessible(true);
+
+		red = RedBlackTree.class.getDeclaredField("RED");
+		red.setAccessible(true);
+		RED = (Boolean) red.get(tree);
+		BLACK = !RED;
+
+		/*
+		** Получение методов вложенного класса
+		 */
+
+		Class<?> entry = fieldRoot.getType();
+
+		getColor = entry.getDeclaredMethod("getColor");
+		getColor.setAccessible(true);
+		getParent = entry.getDeclaredMethod("getParent");
+		getParent.setAccessible(true);
+		getLeft = entry.getDeclaredMethod("getLeft");
+		getLeft.setAccessible(true);
+		getRight = entry.getDeclaredMethod("getRight");
+		getRight.setAccessible(true);
 	}
 
 	@Test
-	public void testInsertOneElemWithoutBalancingDescend() throws InvocationTargetException, IllegalAccessException {
-		insertNode.invoke(tree, 1, 1);
-		tree.printTreePrefix();
-		assertEquals("R_1 ", outPrint.toString());
+	public void testFindByExistingKey() {
+		int key = 0;
+
+		tree.add(key, "Actual");
+		tree.add(key + 1, "Element2");
+		tree.add(key + 2, "Element3");
+		assertEquals("Actual", tree.findElementByKey(key));
 	}
 
 	@Test
-	public void testInsertTwoElemWithoutBalancingDescend() throws InvocationTargetException, IllegalAccessException {
-		insertNode.invoke(tree, 1, 1);
-		insertNode.invoke(tree, 2, 1);
-		tree.printTreePrefix();
-		assertEquals("R_1 R_2 ", outPrint.toString());
+	public void testFindByKeyEmptyTree() {
+		int key = 0;
+
+		assertNull(tree.findElementByKey(key));
 	}
 
 	@Test
-	public void testInsertThreeElemWithoutBalancingDescend() throws InvocationTargetException, IllegalAccessException {
-		insertNode.invoke(tree, 3, 1);
-		insertNode.invoke(tree, 2, 1);
-		insertNode.invoke(tree, 1, 1);
-		tree.printTreePrefix();
-		assertEquals("R_1 R_2 R_3 ", outPrint.toString());
+	public void testContainsExistingKey() {
+		int key = 0;
+
+		tree.add(key, "Element");
+		assertTrue(tree.containsKey(key));
 	}
 
 	@Test
-	public void testInsertOneElemWithoutBalancingAscend() throws InvocationTargetException, IllegalAccessException {
-		insertNode.invoke(tree, 1, 1);
-		tree.printTreePrefix();
-		assertEquals("R_1 ", outPrint.toString());
+	public void testContainsNonExistingKey() {
+		int key = 0;
+
+		tree.add(key, "Element");
+		assertFalse(tree.containsKey(key + 1));
 	}
 
 	@Test
-	public void testInsertTwoElemWithoutBalancingAscend() throws InvocationTargetException, IllegalAccessException {
-		insertNode.invoke(tree, 2, 1);
-		insertNode.invoke(tree, 1, 1);
-		tree.printTreePrefix();
-		assertEquals("R_1 R_2 ", outPrint.toString());
+	public void testContainsKeyEmptyTree() {
+		int key = 0;
+
+		assertFalse(tree.containsKey(key));
 	}
 
 	@Test
-	public void testInsertThreeElemWithoutBalancingAscend() throws InvocationTargetException, IllegalAccessException {
-		insertNode.invoke(tree, 3, 1);
-		insertNode.invoke(tree, 2, 1);
-		insertNode.invoke(tree, 1, 1);
-		tree.printTreePrefix();
-		assertEquals("R_1 R_2 R_3 ", outPrint.toString());
+	public void testContainsNonExistingKeyEmptyTree() {
+		int key = 0;
+
+		assertFalse(tree.containsKey(key + 1));
 	}
 
 	@Test
-	public void testAddFirstElemNotNull() {
-		tree.add(10, 10);
+	public void testRootColorAfterOneInsert() throws InvocationTargetException, IllegalAccessException {
+		int key = 0;
 
-		tree.printTreePrefix();
-		assertEquals("B_10 ", outPrint.toString());
+		tree.add(key, "1");
+		assertEquals(BLACK, getColor.invoke(fieldRoot.get(tree)));
 	}
 
 	@Test
-	public void testAddFirstElemNull() {
-		tree.add(null, 10);
+	public void testRootColorAfterLeftRotate() throws InvocationTargetException, IllegalAccessException {
+		int key = 0;
 
-		tree.printTreePrefix();
-		assertEquals("", outPrint.toString());
+		tree.add(key - 1, "1");
+		tree.add(key, "Root");
+		tree.add(key + 1, "3");
+		assertEquals("Root", tree.findElementByKey(key));
+		assertEquals(BLACK, getColor.invoke(fieldRoot.get(tree)));
 	}
 
 	@Test
-	public void testAddTwoElemDescend() {
-		tree.add(20, 20);
-		tree.add(10, 10);
+	public void testRootColorAfterRightRotate() throws InvocationTargetException, IllegalAccessException {
+		int key = 0;
 
-		tree.printTreePrefix();
-		assertEquals("R_10 B_20 ", outPrint.toString());
+		tree.add(key + 1, "1");
+		tree.add(key, "Root");
+		tree.add(key - 1, "3");
+		assertEquals("Root", tree.findElementByKey(key));
+		assertEquals(BLACK, getColor.invoke(fieldRoot.get(tree)));
 	}
 
 	@Test
-	public void testAddTwoElemAscend() {
-		tree.add(10, 10);
-		tree.add(20, 20);
+	public void testColorsAfterAscendSortInsert() throws IllegalAccessException, InvocationTargetException {
+		int key = 0;
 
-		tree.printTreePrefix();
-		assertEquals("B_10 R_20 ", outPrint.toString());
+		tree.add(key++, "4");
+		tree.add(key++, "5");
+		tree.add(key++, "6");
+		tree.add(key++, "7");
+		tree.add(key++, "1");
+		tree.add(key++, "2");
+		tree.add(key, "3");
+
+		boolean curColor;
+
+		/*
+		 ** Цвета его потомков и родителя
+		 */
+
+		boolean parentColor;
+		boolean leftColor;
+		boolean rightColor;
+
+		boolean ret = true; // флаг корректности выполнения теста
+
+		while (iterator.hasNext()) {
+
+			curColor = (Boolean) getColor.invoke(fieldCur.get(tree)); // цвет текущего элемента
+
+			/*
+			 ** Получаем цвета его потомков и родителя
+			 */
+
+			parentColor = (Boolean) getColor.invoke(getParent.invoke(fieldCur.get(tree)));
+			leftColor = (Boolean) getColor.invoke(getLeft.invoke(fieldCur.get(tree)));
+			rightColor = (Boolean) getColor.invoke(getRight.invoke(fieldCur.get(tree)));
+
+			if (curColor == RED) {
+
+				/*
+				 ** Проверяем есть у красного элемента красные соседи
+				 */
+
+				if (parentColor == RED || rightColor == RED || leftColor== RED) {
+					ret = false;
+					break;
+				}
+			}
+			iterator.next();
+		}
+		assertTrue(ret);
 	}
 
 	@Test
-	public void testAddTwoElemWithNull() {
-		tree.add(10, 10);
-		tree.add(null, 20);
+	public void testColorsAfterDescendSortInsert() throws IllegalAccessException, InvocationTargetException {
+		int key = 0;
 
-		tree.printTreePrefix();
-		assertEquals("B_10 ", outPrint.toString());
+		tree.add(key--, "4");
+		tree.add(key--, "5");
+		tree.add(key--, "6");
+		tree.add(key--, "7");
+		tree.add(key--, "1");
+		tree.add(key--, "2");
+		tree.add(key, "3");
+
+		boolean curColor;
+
+		/*
+		 ** Цвета его потомков и родителя
+		 */
+
+		boolean parentColor;
+		boolean leftColor;
+		boolean rightColor;
+
+		boolean ret = true; // флаг корректности выполнения теста
+
+		while (iterator.hasNext()) {
+
+			curColor = (Boolean) getColor.invoke(fieldCur.get(tree)); // цвет текущего элемента
+
+			/*
+			 ** Получаем цвета его потомков и родителя
+			 */
+
+			parentColor = (Boolean) getColor.invoke(getParent.invoke(fieldCur.get(tree)));
+			leftColor = (Boolean) getColor.invoke(getLeft.invoke(fieldCur.get(tree)));
+			rightColor = (Boolean) getColor.invoke(getRight.invoke(fieldCur.get(tree)));
+
+			if (curColor == RED) {
+
+				/*
+				 ** Проверяем есть у красного элемента красные соседи
+				 */
+
+				if (parentColor == RED || rightColor == RED || leftColor== RED) {
+					ret = false;
+					break;
+				}
+			}
+			iterator.next();
+		}
+		assertTrue(ret);
 	}
 
 	@Test
-	public void testAddElemWithNullValue() {
-		tree.add(10, null);
+	public void testColorsAfterMixedSortInsert() throws IllegalAccessException, InvocationTargetException {
+		int key = 0;
 
-		tree.printTreePrefix();
-		assertEquals("", outPrint.toString());
+		tree.add(10, "10");
+		tree.add(11, "11");
+		tree.add(9, "6");
+		tree.add(12, "7");
+		tree.add(8, "1");
+		tree.add(13, "2");
+		tree.add(7, "3");
+
+		boolean curColor;
+
+		/*
+		 ** Цвета его потомков и родителя
+		 */
+
+		boolean parentColor;
+		boolean leftColor;
+		boolean rightColor;
+
+		boolean ret = true; // флаг корректности выполнения теста
+
+		while (iterator.hasNext()) {
+
+			curColor = (Boolean) getColor.invoke(fieldCur.get(tree)); // цвет текущего элемента
+
+			/*
+			 ** Получаем цвета его потомков и родителя
+			 */
+
+			parentColor = (Boolean) getColor.invoke(getParent.invoke(fieldCur.get(tree)));
+			leftColor = (Boolean) getColor.invoke(getLeft.invoke(fieldCur.get(tree)));
+			rightColor = (Boolean) getColor.invoke(getRight.invoke(fieldCur.get(tree)));
+
+			if (curColor == RED) {
+
+				/*
+				 ** Проверяем есть у красного элемента красные соседи
+				 */
+
+				if (parentColor == RED || rightColor == RED || leftColor== RED) {
+					ret = false;
+					break;
+				}
+			}
+			iterator.next();
+		}
+		assertTrue(ret);
 	}
 
-	@Test
-	public void testAddThreeElemAscend() {
-		tree.add(10, 10);
-		tree.add(20, 20);
-		tree.add(30,30);
-
-		tree.printTreePrefix();
-		assertEquals("R_10 B_20 R_30 ", outPrint.toString());
-	}
-
-	@Test
-	public void testAddThreeElemDescend() {
-		tree.add(30, 30);
-		tree.add(20, 20);
-		tree.add(10,10);
-
-		tree.printTreePrefix();
-		assertEquals("R_10 B_20 R_30 ", outPrint.toString());
-	}
-
-	@Test
-	public void testRedNodeLeftRedParentRight() {
-		tree.add(10, 10);
-		tree.add(30, 30);
-		tree.add(20,20);
-
-		tree.printTreePrefix();
-		assertEquals("R_10 B_20 R_30 ", outPrint.toString());
-	}
-
-	@Test
-	public void testRedNodeRightRedParentLeft() {
-		tree.add(30, 30);
-		tree.add(10, 10);
-		tree.add(20,20);
-
-		tree.printTreePrefix();
-		assertEquals("R_10 B_20 R_30 ", outPrint.toString());
-	}
-
-	@Test
-	public void testEmptyTree() {
-		tree.printTreePrefix();
-		assertEquals("", outPrint.toString());
-	}
-
-	@Test
-	public void testFourSameKeys() {
-		tree.add(10, 10);
-		tree.add(10, 10);
-		tree.add(10, 10);
-		tree.add(10, 10);
-		tree.printTreePrefix();
-		assertEquals("B_10 B_10 B_10 R_10 ", outPrint.toString());
-	}
-
-	@Test
-	public void testColorChange() {
-		tree.add(10, 1);
-		tree.add(5, 1);
-		tree.add(6, 1);
-		tree.add(5, 1);
-		tree.printTreePrefix();
-		assertEquals("B_5 R_5 B_6 B_10 ", outPrint.toString());
-	}
-
-	@After
-	public void resetOutputStream() {
-		System.setOut(sysOut);
-	}
 }
