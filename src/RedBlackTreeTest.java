@@ -19,12 +19,15 @@ public class RedBlackTreeTest {
 	private Method getParent;
 	private Method getLeft;
 	private Method getRight;
+	private Method getBlackNodes;
+	private Method isEmpty;
 
 	/*
 	 ** Приватные поля класса RedBlackTree
 	 */
 
 	private Field fieldRoot;
+	private Field fieldNil;
 	private Field fieldCur;
 
 	private Boolean RED;
@@ -36,12 +39,12 @@ public class RedBlackTreeTest {
 
 		tree = new RedBlackTree<>();
 
-		iterator = tree.iterator();
-
 		fieldRoot = RedBlackTree.class.getDeclaredField("root");
 		fieldRoot.setAccessible(true);
 		fieldCur = RedBlackTree.class.getDeclaredField("cur");
 		fieldCur.setAccessible(true);
+		fieldNil = RedBlackTree.class.getDeclaredField("nil");
+		fieldNil.setAccessible(true);
 
 		red = RedBlackTree.class.getDeclaredField("RED");
 		red.setAccessible(true);
@@ -62,6 +65,10 @@ public class RedBlackTreeTest {
 		getLeft.setAccessible(true);
 		getRight = entry.getDeclaredMethod("getRight");
 		getRight.setAccessible(true);
+		getBlackNodes = entry.getDeclaredMethod("countBlackNodes");
+		getBlackNodes.setAccessible(true);
+		isEmpty = entry.getDeclaredMethod("isEmpty");
+		isEmpty.setAccessible(true);
 	}
 
 	@Test
@@ -141,17 +148,7 @@ public class RedBlackTreeTest {
 		assertEquals(BLACK, getColor.invoke(fieldRoot.get(tree)));
 	}
 
-	@Test
-	public void testColorsAfterAscendSortInsert() throws IllegalAccessException, InvocationTargetException {
-		int key = 0;
-
-		tree.add(key++, "4");
-		tree.add(key++, "5");
-		tree.add(key++, "6");
-		tree.add(key++, "7");
-		tree.add(key++, "1");
-		tree.add(key++, "2");
-		tree.add(key, "3");
+	private boolean iterateAndCheckColors(RedBlackTree<Integer, String> tree) throws IllegalAccessException, InvocationTargetException {
 
 		boolean curColor;
 
@@ -165,6 +162,7 @@ public class RedBlackTreeTest {
 
 		boolean ret = true; // флаг корректности выполнения теста
 
+		iterator = tree.iterator();
 		while (iterator.hasNext()) {
 
 			curColor = (Boolean) getColor.invoke(fieldCur.get(tree)); // цвет текущего элемента
@@ -190,7 +188,22 @@ public class RedBlackTreeTest {
 			}
 			iterator.next();
 		}
-		assertTrue(ret);
+		return ret;
+	}
+
+	@Test
+	public void testColorsAfterAscendSortInsert() throws IllegalAccessException, InvocationTargetException {
+		int key = 0;
+
+		tree.add(key++, "4");
+		tree.add(key++, "5");
+		tree.add(key++, "6");
+		tree.add(key++, "7");
+		tree.add(key++, "1");
+		tree.add(key++, "2");
+		tree.add(key, "3");
+
+		assertTrue(iterateAndCheckColors(tree));
 	}
 
 	@Test
@@ -205,44 +218,7 @@ public class RedBlackTreeTest {
 		tree.add(key--, "2");
 		tree.add(key, "3");
 
-		boolean curColor;
-
-		/*
-		 ** Цвета его потомков и родителя
-		 */
-
-		boolean parentColor;
-		boolean leftColor;
-		boolean rightColor;
-
-		boolean ret = true; // флаг корректности выполнения теста
-
-		while (iterator.hasNext()) {
-
-			curColor = (Boolean) getColor.invoke(fieldCur.get(tree)); // цвет текущего элемента
-
-			/*
-			 ** Получаем цвета его потомков и родителя
-			 */
-
-			parentColor = (Boolean) getColor.invoke(getParent.invoke(fieldCur.get(tree)));
-			leftColor = (Boolean) getColor.invoke(getLeft.invoke(fieldCur.get(tree)));
-			rightColor = (Boolean) getColor.invoke(getRight.invoke(fieldCur.get(tree)));
-
-			if (curColor == RED) {
-
-				/*
-				 ** Проверяем есть у красного элемента красные соседи
-				 */
-
-				if (parentColor == RED || rightColor == RED || leftColor== RED) {
-					ret = false;
-					break;
-				}
-			}
-			iterator.next();
-		}
-		assertTrue(ret);
+		assertTrue(iterateAndCheckColors(tree));
 	}
 
 	@Test
@@ -257,44 +233,48 @@ public class RedBlackTreeTest {
 		tree.add(13, "2");
 		tree.add(7, "3");
 
-		boolean curColor;
+		assertTrue(iterateAndCheckColors(tree));
+	}
 
-		/*
-		 ** Цвета его потомков и родителя
-		 */
+	private boolean iterateAndCheckHeight(RedBlackTree<Integer, String> tree) throws IllegalAccessException, InvocationTargetException {
+		int height = -1;
+		int h;
 
-		boolean parentColor;
-		boolean leftColor;
-		boolean rightColor;
-
-		boolean ret = true; // флаг корректности выполнения теста
-
+		iterator = tree.iterator();
 		while (iterator.hasNext()) {
-
-			curColor = (Boolean) getColor.invoke(fieldCur.get(tree)); // цвет текущего элемента
-
-			/*
-			 ** Получаем цвета его потомков и родителя
-			 */
-
-			parentColor = (Boolean) getColor.invoke(getParent.invoke(fieldCur.get(tree)));
-			leftColor = (Boolean) getColor.invoke(getLeft.invoke(fieldCur.get(tree)));
-			rightColor = (Boolean) getColor.invoke(getRight.invoke(fieldCur.get(tree)));
-
-			if (curColor == RED) {
-
-				/*
-				 ** Проверяем есть у красного элемента красные соседи
-				 */
-
-				if (parentColor == RED || rightColor == RED || leftColor== RED) {
-					ret = false;
-					break;
+			if ((Boolean) isEmpty.invoke(getLeft.invoke(fieldCur.get(tree))) ||
+					(Boolean) isEmpty.invoke(getRight.invoke(fieldCur.get(tree)))) {
+				if (height == -1) {
+					height = (int) getBlackNodes.invoke(fieldCur.get(tree)) + 1;
+				}
+				else {
+					h = (int) getBlackNodes.invoke(fieldCur.get(tree)) + 1;
+					if (height != h) {
+						return false;
+					}
 				}
 			}
 			iterator.next();
 		}
-		assertTrue(ret);
+		return true;
+	}
+
+	/*
+	** Проверяет ченую высоту дерева
+	 */
+
+	@Test
+	public void testBlackHeight() throws InvocationTargetException, IllegalAccessException {
+		tree.add(1, "first");
+		tree.add(2, "Second");
+		tree.add(3, "third");
+		tree.add(11, "first");
+		tree.add(21, "Second");
+		tree.add(31, "third");
+		tree.add(12, "first");
+		tree.add(23, "Second");
+		tree.add(34, "third");
+		assertTrue(iterateAndCheckHeight(tree));
 	}
 
 }

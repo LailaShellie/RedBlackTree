@@ -110,6 +110,25 @@ public class RedBlackTree<K extends Comparable<K>, V> implements Iterable<V>{
 		}
 
 		/*
+		** Возвращает число черных узлов над текущим
+		 */
+
+		private int countBlackNodes() {
+			int count = 0;
+			Entry node = this;
+
+//			if (this == nil)
+//				return 0;
+			if (node.getColor() == BLACK)
+				++count;
+			while (node.getParent() != nil) {
+				node = node.getParent();
+				++count;
+			}
+			return count;
+		}
+
+		/*
 		** Возвращает следующий узел по префиксному обходу
 		 */
 
@@ -154,6 +173,10 @@ public class RedBlackTree<K extends Comparable<K>, V> implements Iterable<V>{
 					return grandFather.left;
 			}
 			return nil;
+		}
+
+		private boolean isEmpty() {
+			return this == nil;
 		}
 
 		public boolean isRight() {
@@ -366,6 +389,7 @@ public class RedBlackTree<K extends Comparable<K>, V> implements Iterable<V>{
 
 	@Override
 	public Iterator<V> iterator() {
+		cur = findMin();
 		return new Iterator<>() {
 			@Override
 			public boolean hasNext() {
